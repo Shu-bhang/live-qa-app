@@ -1,0 +1,80 @@
+:root {
+  --bg: #f2f5fa;
+  --card: #ffffff;
+  --ink: #14213d;
+  --muted: #5b6b86;
+  --line: #d9e0ec;
+  --accent: #2a6fdb;
+  --accent-soft: #dbe7fb;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.5;
+}
+main { max-width: 640px; margin: 0 auto; padding: 20px 16px 48px; }
+h1 { font-size: 1.4rem; margin: 8px 0 20px; }
+h2 { font-size: 1.15rem; margin: 0 0 12px; }
+section {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.muted { color: var(--muted); }
+button, input, textarea {
+  font: inherit;
+  color: inherit;
+}
+input, textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+button {
+  cursor: pointer;
+  padding: 10px 14px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 8px;
+}
+button.secondary { background: #fff; color: var(--accent); }
+button.danger { background: #fff; color: #b3261e; border-color: #b3261e; }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--accent-soft);
+  outline-offset: 1px;
+}
+.option-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 8px;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.option-btn:hover { border-color: var(--accent); }
+.bar-row { margin-bottom: 10px; }
+.bar-label { display: flex; justify-content: space-between; font-size: .95rem; margin-bottom: 4px; }
+.bar-track { background: var(--accent-soft); border-radius: 6px; height: 14px; overflow: hidden; }
+.bar-fill { background: var(--accent); height: 100%; width: 0; transition: width .4s ease; }
+.q-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.q-item:first-child { border-top: 0; }
+.q-text { flex: 1; word-break: break-word; }
+.q-vote { min-width: 64px; padding: 6px 10px; }
+.status { margin-top: 10px; font-size: .95rem; }

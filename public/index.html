@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live Q&A</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <h1>Live poll and Q&A</h1>
+
+  <section>
+    <h2 id="pollTitle">Waiting for a poll</h2>
+    <div id="pollBody" class="muted">Your teacher hasn't started a poll yet.</div>
+  </section>
+
+  <section>
+    <h2>Ask a question</h2>
+    <input id="qInput" maxlength="300" placeholder="Type your question">
+    <button id="qSend">Send question</button>
+    <div id="qList" style="margin-top:16px"></div>
+  </section>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+
+  // Anonymous id so each device gets one vote (no login needed)
+  let clientId = localStorage.getItem('clientId');
+  if (!clientId) {
+    clientId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem('clientId', clientId);
+  }
+  const upvoted = new Set(JSON.parse(localStorage.getItem('upvoted') || '[]'));
+
+  let state = { poll: null, questions: [] };
+
+  socket.on('state', (s) => { state = s; render(); });
+
+  function renderPoll() {
+    const title = document.getElementById('pollTitle');
+    const body = document.getElementById('pollBody');
+    body.innerHTML = '';
+    const poll = state.poll;
+
+    if (!poll) {
+      title.textContent = 'Waiting for a poll';
+      body.className = 'muted';
+      body.textContent = "Your teacher hasn't started a poll yet.";
+      return;
+    }
+
+    title.textContent = poll.question;
+    body.className = '';
+    const hasVoted = localStorage.getItem('votedPoll') === String(poll.id);
+
+    if (!hasVoted) {
+      poll.options.forEach((opt, i) => {
+        const b = document.createElement('button');
+        b.className = 'option-btn';
+        b.textContent = opt.text;
+        b.onclick = () => {
+          socket.emit('vote', { clientId, index: i }, () => {
+            localStorage.setItem('votedPoll', String(poll.id));
+            render();
+          });
+        };
+        body.appendChild(b);
+      });
+      return;
+    }
+
+    const total = poll.options.reduce((sum, o) => sum + o.votes, 0);
+    poll.options.forEach((opt) => {
+      const pct = total ? Math.round((opt.votes / total) * 100) : 0;
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      const label = document.createElement('div');
+      label.className = 'bar-label';
+      const name = document.createElement('span');
+      name.textContent = opt.text;
+      const count = document.createElement('span');
+      count.textContent = `${opt.votes} (${pct}%)`;
+      label.append(name, count);
+      const track = document.createElement('div');
+      track.className = 'bar-track';
+      const fill = document.createElement('div');
+      fill.className = 'bar-fill';
+      fill.style.width = pct + '%';
+      track.appendChild(fill);
+      row.append(label, track);
+      body.appendChild(row);
+    });
+    const note = document.createElement('div');
+    note.className = 'muted status';
+    note.textContent = `Thanks for voting. ${total} vote${total === 1 ? '' : 's'} so far.`;
+    body.appendChild(note);
+  }
+
+  function renderQuestions() {
+    const list = document.getElementById('qList');
+    list.innerHTML = '';
+    if (!state.questions.length) {
+      const empty = document.createElement('div');
+      empty.className = 'muted';
+      empty.textContent = 'No questions yet. Be the first to ask.';
+      list.appendChild(empty);
+      return;
+    }
+    state.questions.forEach((q) => {
+      const row = document.createElement('div');
+      row.className = 'q-item';
+      const text = document.createElement('div');
+      text.className = 'q-text';
+      text.textContent = q.text;
+      const btn = document.createElement('button');
+      btn.className = 'q-vote secondary';
+      btn.textContent = '▲ ' + q.votes;
+      btn.disabled = upvoted.has(q.id);
+      btn.onclick = () => {
+        socket.emit('upvote', { clientId, id: q.id }, () => {
+          upvoted.add(q.id);
+          localStorage.setItem('upvoted', JSON.stringify([...upvoted]));
+          render();
+        });
+      };
+      row.append(text, btn);
+      list.appendChild(row);
+    });
+  }
+
+  function render() { renderPoll(); renderQuestions(); }
+
+  document.getElementById('qSend').onclick = () => {
+    const input = document.getElementById('qInput');
+    const text = input.value.trim();
+    if (!text) return;
+    socket.emit('askQuestion', { text }, () => { input.value = ''; });
+  };
+  document.getElementById('qInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('qSend').click();
+  });
+
+  render();
+</script>
+</body>
+</html>

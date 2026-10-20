@@ -1,0 +1,14 @@
+{
+  "name": "live-qa-app",
+  "version": "1.0.0",
+  "description": "Live polling and Q&A app for the classroom (EC2 + S3 + IAM)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.600.0",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teacher panel</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <h1>Teacher panel</h1>
+
+  <section>
+    <h2>Teacher key</h2>
+    <input id="key" type="password" placeholder="Enter teacher key">
+  </section>
+
+  <section>
+    <h2>Start a poll</h2>
+    <input id="question" maxlength="200" placeholder="Poll question">
+    <textarea id="options" rows="4" placeholder="One option per line (2 to 6)"></textarea>
+    <button id="start">Start poll</button>
+    <div id="startStatus" class="status"></div>
+  </section>
+
+  <section>
+    <h2 id="resultTitle">Live results</h2>
+    <div id="results" class="muted">No active poll.</div>
+  </section>
+
+  <section>
+    <h2>Student questions</h2>
+    <div id="qList"></div>
+  </section>
+
+  <section>
+    <h2>Finish</h2>
+    <p class="muted">Saves all polls and questions as a JSON file in S3, then clears the session.</p>
+    <button id="end" class="danger">End session and save to S3</button>
+    <div id="endStatus" class="status"></div>
+  </section>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const keyInput = document.getElementById('key');
+  keyInput.value = sessionStorage.getItem('teacherKey') || '';
+  keyInput.addEventListener('input', () => sessionStorage.setItem('teacherKey', keyInput.value));
+
+  socket.on('state', (state) => {
+    renderResults(state.poll);
+    renderQuestions(state.questions);
+  });
+
+  function renderResults(poll) {
+    const box = document.getElementById('results');
+    const title = document.getElementById('resultTitle');
+    box.innerHTML = '';
+    if (!poll) {
+      title.textContent = 'Live results';
+      box.className = 'muted';
+      box.textContent = 'No active poll.';
+      return;
+    }
+    title.textContent = poll.question;
+    box.className = '';
+    const total = poll.options.reduce((s, o) => s + o.votes, 0);
+    poll.options.forEach((opt) => {
+      const pct = total ? Math.round((opt.votes / total) * 100) : 0;
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      const label = document.createElement('div');
+      label.className = 'bar-label';
+      const name = document.createElement('span');
+      name.textContent = opt.text;
+      const count = document.createElement('span');
+      count.textContent = `${opt.votes} (${pct}%)`;
+      label.append(name, count);
+      const track = document.createElement('div');
+      track.className = 'bar-track';
+      const fill = document.createElement('div');
+      fill.className = 'bar-fill';
+      fill.style.width = pct + '%';
+      track.appendChild(fill);
+      row.append(label, track);
+      box.appendChild(row);
+    });
+    const note = document.createElement('div');
+    note.className = 'muted status';
+    note.textContent = `${total} vote${total === 1 ? '' : 's'} total`;
+    box.appendChild(note);
+  }
+
+  function renderQuestions(questions) {
+    const list = document.getElementById('qList');
+    list.innerHTML = '';
+    if (!questions.length) {
+      const empty = document.createElement('div');
+      empty.className = 'muted';
+      empty.textContent = 'No questions yet.';
+      list.appendChild(empty);
+      return;
+    }
+    questions.forEach((q) => {
+      const row = document.createElement('div');
+      row.className = 'q-item';
+      const text = document.createElement('div');
+      text.className = 'q-text';
+      text.textContent = q.text;
+      const votes = document.createElement('div');
+      votes.className = 'muted';
+      votes.textContent = '▲ ' + q.votes;
+      row.append(text, votes);
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById('start').onclick = () => {
+    const question = document.getElementById('question').value;
+    const options = document.getElementById('options').value.split('\n');
+    const status = document.getElementById('startStatus');
+    socket.emit('createPoll', { key: keyInput.value, question, options }, (res) => {
+      status.textContent = res.ok ? 'Poll started.' : res.message;
+      if (res.ok) {
+        document.getElementById('question').value = '';
+        document.getElementById('options').value = '';
+      }
+    });
+  };
+
+  document.getElementById('end').onclick = () => {
+    const status = document.getElementById('endStatus');
+    status.textContent = 'Saving...';
+    socket.emit('endSession', { key: keyInput.value }, (res) => {
+      status.textContent = res.message;
+    });
+  };
+</script>
+</body>
+</html>
