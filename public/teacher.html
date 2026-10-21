@@ -8,14 +8,29 @@
 </head>
 <body>
 <main>
-  <h1>Teacher panel</h1>
+  <header class="top">
+    <h1>Teacher panel</h1>
+    <div class="actions">
+      <span id="status" class="pill">Connecting</span>
+      <button id="presentBtn" class="secondary">Present mode</button>
+    </div>
+  </header>
 
-  <section>
+  <section class="join-box">
+    <div id="qr" class="qr"></div>
+    <div>
+      <h2>Join the session</h2>
+      <div id="joinUrl" class="join-url"></div>
+      <div class="muted">Scan the code or type the address.</div>
+    </div>
+  </section>
+
+  <section class="hide-present">
     <h2>Teacher key</h2>
     <input id="key" type="password" placeholder="Enter teacher key">
   </section>
 
-  <section>
+  <section class="hide-present">
     <h2>Start a poll</h2>
     <input id="question" maxlength="200" placeholder="Poll question">
     <textarea id="options" rows="4" placeholder="One option per line (2 to 6)"></textarea>
@@ -33,7 +48,7 @@
     <div id="qList"></div>
   </section>
 
-  <section>
+  <section class="hide-present">
     <h2>Finish</h2>
     <p class="muted">Saves all polls and questions as a JSON file in S3, then clears the session.</p>
     <button id="end" class="danger">End session and save to S3</button>
@@ -41,12 +56,42 @@
   </section>
 </main>
 
+<script src="/qrcode.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
   const socket = io();
   const keyInput = document.getElementById('key');
   keyInput.value = sessionStorage.getItem('teacherKey') || '';
   keyInput.addEventListener('input', () => sessionStorage.setItem('teacherKey', keyInput.value));
+
+  const statusEl = document.getElementById('status');
+  function setStatus(on) {
+    statusEl.textContent = on ? 'Live' : 'Reconnecting';
+    statusEl.classList.toggle('on', on);
+  }
+  socket.on('connect', () => setStatus(true));
+  socket.on('disconnect', () => setStatus(false));
+
+  // Join link + QR code (generated in the browser, no external service)
+  const joinUrl = location.origin + '/';
+  document.getElementById('joinUrl').textContent = joinUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(joinUrl);
+    qr.make();
+    document.getElementById('qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 3, scalable: true });
+  } catch (e) {
+    document.getElementById('qr').hidden = true;
+  }
+
+  // Present mode: hides controls, enlarges results for the projector
+  const presentBtn = document.getElementById('presentBtn');
+  function setPresent(on) {
+    document.body.classList.toggle('present', on);
+    presentBtn.textContent = on ? 'Exit present mode' : 'Present mode';
+  }
+  presentBtn.onclick = () => setPresent(!document.body.classList.contains('present'));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setPresent(false); });
 
   socket.on('state', (state) => {
     renderResults(state.poll);
@@ -66,10 +111,11 @@
     title.textContent = poll.question;
     box.className = '';
     const total = poll.options.reduce((s, o) => s + o.votes, 0);
+    const top = Math.max(...poll.options.map(o => o.votes));
     poll.options.forEach((opt) => {
       const pct = total ? Math.round((opt.votes / total) * 100) : 0;
       const row = document.createElement('div');
-      row.className = 'bar-row';
+      row.className = 'bar-row' + (total && opt.votes === top ? ' lead' : '');
       const label = document.createElement('div');
       label.className = 'bar-label';
       const name = document.createElement('span');
