@@ -19,6 +19,19 @@ const s3 = new S3Client({ region: REGION }); // on EC2, credentials come from th
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/teacher', (req, res) => res.sendFile(path.join(__dirname, 'public', 'teacher.html')));
 app.get('/health', (req, res) => res.send('ok'));
+app.get('/exports', (req, res) => {
+  if (req.query.key !== TEACHER_KEY) return res.status(403).send('Wrong teacher key');
+  const dir = path.join(__dirname, 'exports');
+  const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+  res.send(files.length
+    ? files.map(f => `<a href="/exports/${f}?key=${req.query.key}">${f}</a>`).join('<br>')
+    : 'No exports yet');
+});
+
+app.get('/exports/:file', (req, res) => {
+  if (req.query.key !== TEACHER_KEY) return res.status(403).send('Wrong teacher key');
+  res.download(path.join(__dirname, 'exports', path.basename(req.params.file)));
+});
 
 // ---------- In-memory state (no database) ----------
 let poll = null;          // { id, question, options: [{ text, votes }] }
